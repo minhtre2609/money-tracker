@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Money Tracker Pro - Kết nối Google Sheets</title>
+    <title>Money Tracker Pro - Đồng bộ dữ liệu</title>
     
     <!-- React & ReactDOM -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
@@ -32,7 +32,6 @@
         }
         .vip-gradient { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); }
         .vip-card-selected { border: 2px solid #d97706; background-color: #fffbeb; }
-        /* Loading Spinner */
         .loader { border: 3px solid #f3f3f3; border-radius: 50%; border-top: 3px solid #3498db; width: 20px; height: 20px; -webkit-animation: spin 1s linear infinite; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
@@ -42,108 +41,81 @@
 
     <script type="text/babel">
         const { useState, useEffect, useRef, useMemo } = React;
-        const GAS_API_URL = "https://script.google.com/macros/s/AKfycbyTTGf1EMlb02-OnWB4JRwWb-zelzoITzMEsWi4zROd3X-mrHle05jR4q664SYobcTK/exec"; 
+        const GAS_API_URL = "https://script.google.com/macros/s/AKfycbzhQ3fOjztvNrVLOcocTomPRdrHlrBbPC3p0xE00YC49Ca-ffxH8-U4ZIhkPuYWB-DY/exec"; 
         
-        // --- API THẬT (Kết nối Google Sheets) ---
         const REAL_API = {
-            // Hàm kiểm tra URL chung
             checkUrl: () => {
                 if (!GAS_API_URL || GAS_API_URL.length < 10) {
-                    alert("LỖI: Bạn chưa dán link Google Apps Script vào biến GAS_API_URL trong code!");
+                    alert("LỖI: Chưa cấu hình GAS_API_URL trong code!");
                     return false;
                 }
                 return true;
             },
 
             login: async (email, password) => {
-                if (!REAL_API.checkUrl()) throw new Error("Chưa cấu hình API URL");
-                
-                try {
-                    const response = await fetch(GAS_API_URL, {
-                        method: 'POST',
-                        redirect: "follow", 
-                        headers: { "Content-Type": "text/plain;charset=utf-8" },
-                        body: JSON.stringify({ action: 'login', email, password })
-                    });
-                    
-                    const result = await response.json();
-                    if (result.status === 'success') {
-                        return result.user;
-                    } else {
-                        throw new Error(result.message || "Đăng nhập thất bại");
-                    }
-                } catch (err) {
-                    console.error(err);
-                    throw new Error("Lỗi kết nối: Kiểm tra xem bạn đã chọn quyền 'Anyone' (Bất kỳ ai) khi Deploy chưa?");
-                }
+                if (!REAL_API.checkUrl()) throw new Error("Chưa cấu hình API");
+                const response = await fetch(GAS_API_URL, {
+                    method: 'POST', redirect: "follow", 
+                    headers: { "Content-Type": "text/plain;charset=utf-8" },
+                    body: JSON.stringify({ action: 'login', email, password })
+                });
+                const result = await response.json();
+                if (result.status === 'success') return result.user;
+                throw new Error(result.message || "Đăng nhập thất bại");
             },
 
             register: async (name, email, password, tier) => {
                 if (!REAL_API.checkUrl()) return;
-
-                try {
-                    const response = await fetch(GAS_API_URL, {
-                        method: 'POST',
-                        redirect: "follow",
-                        headers: { "Content-Type": "text/plain;charset=utf-8" },
-                        body: JSON.stringify({ 
-                            action: 'register',
-                            name,
-                            email, 
-                            password,
-                            tier
-                        })
-                    });
-                    const result = await response.json();
-                    if (result.status === 'success') {
-                        return result.user;
-                    } else {
-                        throw new Error(result.message || "Đăng ký thất bại");
-                    }
-                } catch (err) {
-                    console.error(err);
-                    throw new Error("Lỗi kết nối (Fetch Error): Hãy chắc chắn bạn đã Deploy Script với quyền 'Anyone' (Bất kỳ ai).");
-                }
+                const response = await fetch(GAS_API_URL, {
+                    method: 'POST', redirect: "follow",
+                    headers: { "Content-Type": "text/plain;charset=utf-8" },
+                    body: JSON.stringify({ action: 'register', name, email, password, tier })
+                });
+                const result = await response.json();
+                if (result.status === 'success') return result.user;
+                throw new Error(result.message || "Đăng ký thất bại");
             },
             
             addTransaction: async (user, transaction) => {
                  if (!REAL_API.checkUrl()) return;
-
                  const response = await fetch(GAS_API_URL, {
-                    method: 'POST',
-                    redirect: "follow",
+                    method: 'POST', redirect: "follow",
                     headers: { "Content-Type": "text/plain;charset=utf-8" },
-                    body: JSON.stringify({ 
-                        action: 'add_transaction', 
-                        email: user.email,
-                        tier: user.tier,
-                        transaction: transaction 
-                    })
+                    body: JSON.stringify({ action: 'add_transaction', email: user.email, tier: user.tier, transaction })
                 });
                 return await response.json();
+            },
+
+            // --- MỚI: HÀM LẤY DỮ LIỆU CŨ ---
+            getTransactions: async (email) => {
+                if (!REAL_API.checkUrl()) return [];
+                const response = await fetch(GAS_API_URL, {
+                    method: 'POST', redirect: "follow",
+                    headers: { "Content-Type": "text/plain;charset=utf-8" },
+                    body: JSON.stringify({ action: 'get_transactions', email })
+                });
+                const result = await response.json();
+                if (result.status === 'success') return result.transactions;
+                return [];
             }
         };
 
-        // --- Dữ liệu danh mục ---
         const CATEGORIES = {
             expense: [
-                { id: 'anuong', label: 'Ăn uống', keywords: ['cafe', 'cơm', 'phở', 'bún', 'nước', 'tiệc', 'nhậu', 'pizza'] },
-                { id: 'dichuyen', label: 'Di chuyển', keywords: ['xăng', 'xe', 'grab', 'taxi', 'bus', 'gửi xe'] },
-                { id: 'muasam', label: 'Mua sắm', keywords: ['quần', 'áo', 'giày', 'túi', 'siêu thị', 'chợ', 'shopee', 'lazada'] },
-                { id: 'hoadon', label: 'Hóa đơn', keywords: ['điện', 'nước', 'net', 'internet', 'nhà', 'phòng'] },
-                { id: 'suckhoe', label: 'Sức khỏe', keywords: ['thuốc', 'khám', 'gym', 'yoga'] },
-                { id: 'giaitri', label: 'Giải trí', keywords: ['phim', 'game', 'netflix', 'du lịch'] },
+                { id: 'anuong', label: 'Ăn uống', keywords: ['cafe', 'cơm', 'phở', 'bún'] },
+                { id: 'dichuyen', label: 'Di chuyển', keywords: ['xăng', 'xe', 'grab'] },
+                { id: 'muasam', label: 'Mua sắm', keywords: ['quần', 'áo', 'giày'] },
+                { id: 'hoadon', label: 'Hóa đơn', keywords: ['điện', 'nước', 'net'] },
+                { id: 'giaitri', label: 'Giải trí', keywords: ['phim', 'game'] },
                 { id: 'khac', label: 'Khác', keywords: [] }
             ],
             income: [
-                { id: 'luong', label: 'Lương', keywords: ['lương', 'salary'] },
-                { id: 'thuong', label: 'Thưởng', keywords: ['thưởng', 'bonus'] },
-                { id: 'dautu', label: 'Đầu tư', keywords: ['lãi', 'chứng khoán', 'vàng'] },
+                { id: 'luong', label: 'Lương', keywords: ['lương'] },
+                { id: 'thuong', label: 'Thưởng', keywords: ['thưởng'] },
                 { id: 'khac_in', label: 'Thu nhập khác', keywords: [] }
             ]
         };
 
-        // --- Utility Components ---
         const Icon = ({ name, size = 20, className = "" }) => {
             const icons = {
                 'home': <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>,
@@ -156,13 +128,11 @@
                 'trash': <polyline points="3 6 5 6 21 6"></polyline>,
                 'lightbulb': <path d="M9 18h6"></path>,
                 'clock': <circle cx="12" cy="12" r="10"></circle>,
-                'menu': <line x1="3" y1="12" x2="21" y2="12"></line>,
                 'crown': <path d="M2 4l3 12h14l3-12-6 7-4-7-4 7-6-7zm3 16h14"></path>,
                 'cloud': <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"></path>,
                 'check': <polyline points="20 6 9 17 4 12"></polyline>,
-                'lock': <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                'refresh': <path d="M23 4v6h-6M1 20v-6h6"></path>
             };
-
             return (
                 <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
                     {icons[name] || <circle cx="12" cy="12" r="10"/>}
@@ -170,58 +140,33 @@
             );
         };
 
-        const formatCurrency = (amount) => {
-            return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
-        };
+        const formatCurrency = (amount) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
 
-        // --- Auth Component (Login & Register) ---
+        // --- Auth Component ---
         const AuthScreen = ({ onLogin }) => {
             const [isLoginView, setIsLoginView] = useState(true);
             const [email, setEmail] = useState('');
             const [password, setPassword] = useState('');
             const [name, setName] = useState('');
             const [tier, setTier] = useState('free');
-            
             const [loading, setLoading] = useState(false);
             const [errorMsg, setErrorMsg] = useState('');
-
-            // Kiểm tra link trước khi render để cảnh báo ngay
-            useEffect(() => {
-                if (!GAS_API_URL || GAS_API_URL.length < 10) {
-                    setErrorMsg("⚠️ Chưa cấu hình link Google Apps Script! Hãy sửa code và dán link vào biến GAS_API_URL.");
-                }
-            }, []);
 
             const handleSubmit = async (e) => {
                 e.preventDefault();
                 setLoading(true);
                 setErrorMsg('');
-                
                 try {
                     let user;
                     if (isLoginView) {
-                        // Đăng nhập
                         user = await REAL_API.login(email, password);
                     } else {
-                        // Đăng ký
-                        if (tier === 'vip') {
-                             if(!confirm("Xác nhận thanh toán 50.000đ để đăng ký VIP?")) {
-                                 setLoading(false);
-                                 return;
-                             }
-                        }
-                        
-                        try {
-                             user = await REAL_API.register(name, email, password, tier);
-                        } catch (regErr) {
-                             console.warn("Backend register failed:", regErr);
-                             throw regErr; // Throw để hiển thị lỗi ra màn hình
-                        }
+                        if (tier === 'vip' && !confirm("Xác nhận đăng ký VIP (50k)?")) { setLoading(false); return; }
+                        user = await REAL_API.register(name, email, password, tier);
                     }
                     onLogin(user);
                 } catch (error) {
-                    console.error(error);
-                    setErrorMsg(error.message || "Thao tác thất bại.");
+                    setErrorMsg(error.message);
                 } finally {
                     setLoading(false);
                 }
@@ -231,122 +176,43 @@
                 <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
                     <div className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md slide-in">
                         <div className="text-center mb-6">
-                            <div className="w-16 h-16 bg-blue-600 rounded-2xl mx-auto flex items-center justify-center text-white mb-4 shadow-lg shadow-blue-200">
-                                <span className="text-3xl font-bold">$</span>
-                            </div>
                             <h1 className="text-2xl font-bold text-gray-800">Money Tracker Pro</h1>
-                            <p className="text-gray-500">{isLoginView ? 'Đăng nhập để tiếp tục' : 'Tạo tài khoản mới'}</p>
+                            <p className="text-gray-500">{isLoginView ? 'Đăng nhập' : 'Tạo tài khoản'}</p>
                         </div>
-                        
                         <form onSubmit={handleSubmit} className="space-y-4">
+                            {!isLoginView && <input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full p-3 border rounded-lg" placeholder="Họ tên" required />}
+                            <input type="email" value={email} onChange={e => setEmail(e.target.value)} className="w-full p-3 border rounded-lg" placeholder="Email" required />
+                            <input type="password" value={password} onChange={e => setPassword(e.target.value)} className="w-full p-3 border rounded-lg" placeholder="Mật khẩu" required />
+                            
                             {!isLoginView && (
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Họ và Tên</label>
-                                    <input 
-                                        type="text" 
-                                        value={name}
-                                        onChange={e => setName(e.target.value)}
-                                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-                                        placeholder="Nguyễn Văn A"
-                                        required={!isLoginView}
-                                    />
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div onClick={() => setTier('free')} className={`p-3 border rounded-xl cursor-pointer text-center ${tier === 'free' ? 'border-blue-500 bg-blue-50' : ''}`}>Free</div>
+                                    <div onClick={() => setTier('vip')} className={`p-3 border rounded-xl cursor-pointer text-center ${tier === 'vip' ? 'vip-card-selected' : ''}`}>VIP (50k)</div>
                                 </div>
                             )}
 
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                                <input 
-                                    type="email" 
-                                    value={email}
-                                    onChange={e => setEmail(e.target.value)}
-                                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-                                    placeholder="email@example.com"
-                                    required
-                                />
-                            </div>
-                            
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Mật khẩu</label>
-                                <input 
-                                    type="password" 
-                                    value={password}
-                                    onChange={e => setPassword(e.target.value)}
-                                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-                                    placeholder="••••••••"
-                                    required
-                                />
-                            </div>
-
-                            {/* Plan Selection for Register */}
-                            {!isLoginView && (
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">Chọn gói thành viên</label>
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <div 
-                                            onClick={() => setTier('free')}
-                                            className={`cursor-pointer p-3 rounded-xl border text-center transition ${tier === 'free' ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-500' : 'border-gray-200 hover:border-gray-300'}`}
-                                        >
-                                            <div className="font-bold text-gray-700">Miễn phí</div>
-                                            <div className="text-xs text-gray-500">Cơ bản</div>
-                                        </div>
-                                        <div 
-                                            onClick={() => setTier('vip')}
-                                            className={`cursor-pointer p-3 rounded-xl border text-center transition relative overflow-hidden ${tier === 'vip' ? 'vip-card-selected' : 'border-gray-200 hover:border-yellow-200'}`}
-                                        >
-                                            {tier === 'vip' && <div className="absolute top-0 right-0 bg-yellow-500 text-white text-[10px] px-2 py-0.5 rounded-bl-lg font-bold">HOT</div>}
-                                            <div className="font-bold text-yellow-700 flex items-center justify-center gap-1">
-                                                <Icon name="crown" size={14}/> VIP
-                                            </div>
-                                            <div className="text-xs text-yellow-600 font-bold">50.000đ</div>
-                                        </div>
-                                    </div>
-                                    {tier === 'vip' && <p className="text-xs text-center text-yellow-600 mt-2">Đặc quyền: Đồng bộ Lịch Google & Biểu đồ nâng cao</p>}
-                                </div>
-                            )}
-
-                            {errorMsg && <div className="text-red-500 text-sm text-center bg-red-50 p-2 rounded border border-red-100">{errorMsg}</div>}
-                            
-                            <button 
-                                type="submit" 
-                                disabled={loading}
-                                className={`w-full py-3 text-white rounded-lg font-bold transition disabled:opacity-50 flex justify-center items-center gap-2 shadow-md ${!isLoginView && tier === 'vip' ? 'bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600' : 'bg-blue-600 hover:bg-blue-700'}`}
-                            >
-                                {loading ? <div className="loader"></div> : (isLoginView ? 'Đăng nhập' : (tier === 'vip' ? 'Thanh toán & Đăng ký' : 'Đăng ký miễn phí'))}
+                            {errorMsg && <div className="text-red-500 text-sm text-center">{errorMsg}</div>}
+                            <button type="submit" disabled={loading} className="w-full py-3 bg-blue-600 text-white rounded-lg font-bold disabled:opacity-50">
+                                {loading ? 'Đang xử lý...' : (isLoginView ? 'Đăng nhập' : 'Đăng ký')}
                             </button>
                         </form>
-
-                        <div className="mt-6 text-center text-sm text-gray-500">
-                           <p>
-                               {isLoginView ? 'Chưa có tài khoản? ' : 'Đã có tài khoản? '}
-                               <button onClick={() => { setIsLoginView(!isLoginView); setErrorMsg(''); }} className="text-blue-600 font-bold hover:underline">
-                                   {isLoginView ? 'Đăng ký ngay' : 'Đăng nhập'}
-                               </button>
-                           </p>
+                        <div className="mt-4 text-center text-sm">
+                            <button onClick={() => setIsLoginView(!isLoginView)} className="text-blue-600 font-bold">{isLoginView ? 'Tạo tài khoản mới' : 'Quay lại đăng nhập'}</button>
                         </div>
                     </div>
                 </div>
             );
         };
 
-        // --- Main App Component ---
+        // --- Main App ---
         const App = () => {
-            const [user, setUser] = useState(() => {
-                const savedUser = localStorage.getItem('user');
-                return savedUser ? JSON.parse(savedUser) : null;
-            });
-
-            const [transactions, setTransactions] = useState(() => {
-                const saved = localStorage.getItem('transactions');
-                return saved ? JSON.parse(saved) : [];
-            });
-            const [budgetLimit, setBudgetLimit] = useState(() => {
-                return parseInt(localStorage.getItem('budgetLimit')) || 10000000;
-            });
+            const [user, setUser] = useState(() => JSON.parse(localStorage.getItem('user')));
+            const [transactions, setTransactions] = useState([]);
+            const [budgetLimit, setBudgetLimit] = useState(10000000);
             const [activeTab, setActiveTab] = useState('dashboard');
-            
             const [isSyncing, setIsSyncing] = useState(false);
-            const [lastSync, setLastSync] = useState(localStorage.getItem('lastSync'));
-
+            
+            // Input State
             const [amount, setAmount] = useState('');
             const [desc, setDesc] = useState('');
             const [type, setType] = useState('expense');
@@ -355,67 +221,62 @@
             const chartRef = useRef(null);
             const chartInstance = useRef(null);
 
+            // --- Effects ---
             useEffect(() => {
-                if(user) localStorage.setItem('user', JSON.stringify(user));
-                else localStorage.removeItem('user');
+                if(user) {
+                    localStorage.setItem('user', JSON.stringify(user));
+                    // Khi App load hoặc User thay đổi, tự động tải dữ liệu cũ
+                    fetchData(user.email);
+                } else {
+                    localStorage.removeItem('user');
+                    setTransactions([]);
+                }
             }, [user]);
 
             useEffect(() => {
-                localStorage.setItem('transactions', JSON.stringify(transactions));
-            }, [transactions]);
-
-            useEffect(() => {
-                localStorage.setItem('budgetLimit', budgetLimit);
-            }, [budgetLimit]);
-
-            useEffect(() => {
+                // Auto categorize logic
                 if (!desc) return;
-                const lowerDesc = desc.toLowerCase();
                 const list = type === 'expense' ? CATEGORIES.expense : CATEGORIES.income;
-                let found = list.find(cat => cat.keywords.some(k => lowerDesc.includes(k)));
+                let found = list.find(cat => cat.keywords.some(k => desc.toLowerCase().includes(k)));
                 if (found) setCategory(found.id);
             }, [desc, type]);
 
             useEffect(() => {
-                if (activeTab === 'dashboard' && chartRef.current) {
+                // Chart logic
+                if (activeTab === 'dashboard' && chartRef.current && transactions.length > 0) {
                     if (chartInstance.current) chartInstance.current.destroy();
-
-                    const currentMonth = new Date().getMonth();
-                    const currentYear = new Date().getFullYear();
-                    
-                    const expenseTrans = transactions.filter(t => 
-                        t.type === 'expense' && 
-                        new Date(t.date).getMonth() === currentMonth &&
-                        new Date(t.date).getFullYear() === currentYear
-                    );
-
+                    const expenseTrans = transactions.filter(t => t.type === 'expense');
                     const catTotals = {};
-                    CATEGORIES.expense.forEach(c => catTotals[c.label] = 0);
                     expenseTrans.forEach(t => {
-                        const catLabel = CATEGORIES.expense.find(c => c.id === t.category)?.label || 'Khác';
-                        catTotals[catLabel] = (catTotals[catLabel] || 0) + t.amount;
+                        const label = CATEGORIES.expense.find(c => c.id === t.category)?.label || 'Khác';
+                        catTotals[label] = (catTotals[label] || 0) + t.amount;
                     });
-
-                    const labels = Object.keys(catTotals).filter(k => catTotals[k] > 0);
-                    const data = labels.map(k => catTotals[k]);
-                    const colors = ['#3b82f6', '#ef4444', '#f59e0b', '#10b981', '#8b5cf6', '#ec4899', '#6366f1'];
-
-                    const ctx = chartRef.current.getContext('2d');
-                    chartInstance.current = new Chart(ctx, {
+                    
+                    chartInstance.current = new Chart(chartRef.current.getContext('2d'), {
                         type: 'doughnut',
                         data: {
-                            labels: labels,
-                            datasets: [{ data: data, backgroundColor: colors, borderWidth: 0, hoverOffset: 4 }]
+                            labels: Object.keys(catTotals),
+                            datasets: [{ data: Object.values(catTotals), backgroundColor: ['#ef4444', '#f59e0b', '#3b82f6', '#10b981', '#8b5cf6'], borderWidth: 0 }]
                         },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, padding: 20 } } },
-                            layout: { padding: 20 }
-                        }
+                        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
                     });
                 }
-            }, [transactions, activeTab, user]);
+            }, [transactions, activeTab]);
+
+            // --- Functions ---
+            const fetchData = async (email) => {
+                setIsSyncing(true);
+                try {
+                    const data = await REAL_API.getTransactions(email);
+                    // Sắp xếp theo ngày mới nhất
+                    data.sort((a, b) => new Date(b.date) - new Date(a.date));
+                    setTransactions(data);
+                } catch(e) {
+                    console.error("Lỗi tải dữ liệu", e);
+                } finally {
+                    setIsSyncing(false);
+                }
+            };
 
             const handleLogin = (userData) => {
                 setUser(userData);
@@ -423,435 +284,217 @@
             };
 
             const handleLogout = () => {
-                setUser(null);
-                setTransactions([]); 
-                setActiveTab('dashboard');
+                if(confirm("Đăng xuất?")) setUser(null);
             };
 
             const handleAddTransaction = async (e) => {
                 e.preventDefault();
-                if (!amount || !desc) return;
-
                 const newTrans = {
                     id: 't' + Date.now(),
                     amount: parseInt(amount),
                     description: desc,
-                    type,
-                    category,
+                    type, category,
                     date: new Date().toISOString()
                 };
 
-                const updatedTransactions = [newTrans, ...transactions];
-                setTransactions(updatedTransactions);
-                setAmount('');
-                setDesc('');
-                
-                // --- SYNC REAL TIME ---
+                // Optimistic UI Update (Hiển thị trước khi lưu xong)
+                setTransactions([newTrans, ...transactions]);
+                setAmount(''); setDesc('');
+
                 setIsSyncing(true);
                 try {
                     await REAL_API.addTransaction(user, newTrans);
-                    const now = new Date().toLocaleTimeString();
-                    setLastSync(now);
-                    localStorage.setItem('lastSync', now);
-                    // alert("Đã lưu lên Cloud thành công!");
-                } catch (err) {
-                    console.error("Lỗi lưu cloud:", err);
-                    alert("Đã lưu cục bộ, nhưng lỗi lưu Cloud: " + err.message);
+                } catch(e) {
+                    alert("Lỗi lưu Cloud: " + e.message);
                 } finally {
                     setIsSyncing(false);
-                    alert("Đã thêm giao dịch!");
-                    setActiveTab('dashboard'); 
+                    alert("Đã thêm!");
+                    setActiveTab('dashboard');
                 }
             };
 
             const deleteTransaction = (id) => {
-                if(confirm("Xóa giao dịch này chỉ xóa ở máy bạn (Cloud vẫn còn). Bạn chắc chứ?")) {
+                if(confirm("Chỉ xóa ở giao diện này (Cloud chưa hỗ trợ xóa API). OK?")) {
                     setTransactions(transactions.filter(t => t.id !== id));
                 }
             };
 
-            const totalIncome = transactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
-            const totalExpense = transactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
-            const balance = totalIncome - totalExpense;
-            const percentUsed = Math.min((totalExpense / budgetLimit) * 100, 100);
+            // Calculate totals
+            const totalIncome = transactions.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
+            const totalExpense = transactions.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
 
-            const getAdvice = () => {
-                if (totalExpense > budgetLimit) return { type: 'danger', text: 'Cảnh báo: Bạn đã chi tiêu vượt quá ngân sách tháng này!' };
-                if (percentUsed > 80) return { type: 'warning', text: 'Chú ý: Bạn đã tiêu hết hơn 80% ngân sách.' };
-                
-                if (user && user.tier === 'vip') {
-                     const entertainment = transactions.filter(t => t.category === 'giaitri').reduce((sum, t) => sum + t.amount, 0);
-                     if (entertainment > totalExpense * 0.3 && totalExpense > 0) {
-                         return { type: 'info', text: 'Phân tích VIP: Chi giải trí cao (>30%). Cân nhắc giảm bớt.' };
-                     }
-                }
-                return { type: 'neutral', text: 'Hệ thống đang theo dõi chi tiêu của bạn.' };
-            };
-            
-            const advice = getAdvice();
-
-            if (!user) {
-                // Sử dụng Component AuthScreen mới
-                return <AuthScreen onLogin={handleLogin} />;
-            }
-
-            const renderDashboard = () => (
-                <div className="space-y-6 slide-in">
-                    <div className="flex justify-between items-end">
-                        <h2 className="text-2xl font-bold text-gray-800">Tổng quan</h2>
-                        <span className="text-sm text-gray-400 flex items-center gap-1">
-                             {isSyncing ? <span className="loader" style={{width: 12, height: 12, borderWidth: 2}}></span> : <Icon name="check" size={14} className="text-green-500"/>}
-                             {isSyncing ? 'Đang lưu Cloud...' : `Đã lưu: ${lastSync || 'Mới đây'}`}
-                        </span>
-                    </div>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div className="bg-white p-6 rounded-xl card-shadow border-l-4 border-blue-500 flex items-center justify-between">
-                            <div>
-                                <p className="text-gray-500 text-sm font-medium mb-1">Số dư</p>
-                                <p className="text-3xl font-bold text-gray-800">{formatCurrency(balance)}</p>
-                            </div>
-                            <div className="p-3 bg-blue-50 rounded-full text-blue-600"><Icon name="wallet" size={28} /></div>
-                        </div>
-                        <div className="bg-white p-6 rounded-xl card-shadow border-l-4 border-green-500 flex items-center justify-between">
-                             <div>
-                                <p className="text-gray-500 text-sm font-medium mb-1">Tổng thu</p>
-                                <p className="text-3xl font-bold text-green-600">+{formatCurrency(totalIncome)}</p>
-                            </div>
-                            <div className="p-3 bg-green-50 rounded-full text-green-600"><Icon name="trending-up" size={28} /></div>
-                        </div>
-                        <div className="bg-white p-6 rounded-xl card-shadow border-l-4 border-red-500 flex items-center justify-between">
-                             <div>
-                                <p className="text-gray-500 text-sm font-medium mb-1">Tổng chi</p>
-                                <p className="text-3xl font-bold text-red-600">-{formatCurrency(totalExpense)}</p>
-                            </div>
-                            <div className="p-3 bg-red-50 rounded-full text-red-600"><Icon name="trending-down" size={28} /></div>
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                        <div className="bg-white p-6 rounded-xl card-shadow lg:col-span-2 relative">
-                            <h3 className="font-semibold text-gray-800 mb-6 flex items-center gap-2">
-                                Phân tích chi tiêu
-                                {user.tier === 'vip' && <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full border border-yellow-200 font-bold">VIP Chart</span>}
-                            </h3>
-                            
-                            {user.tier === 'free' && transactions.length > 5 ? (
-                                <div className="absolute inset-0 bg-white/90 backdrop-blur-sm z-10 flex flex-col items-center justify-center text-center p-6 rounded-xl">
-                                    <Icon name="lock" size={48} className="text-gray-400 mb-4" />
-                                    <h4 className="text-lg font-bold text-gray-800">Tính năng VIP</h4>
-                                    <p className="text-gray-600 mb-4">Nâng cấp VIP để xem biểu đồ chi tiết trọn đời.</p>
-                                    <button className="px-4 py-2 bg-gradient-to-r from-yellow-400 to-orange-500 text-white font-bold rounded-lg shadow-lg">Liên hệ Admin</button>
-                                </div>
-                            ) : null}
-
-                            <div className="h-72 w-full flex items-center justify-center">
-                                 {totalExpense === 0 ? (
-                                     <div className="text-gray-400 flex flex-col items-center">
-                                        <Icon name="lightbulb" size={40} className="mb-2 opacity-50"/>
-                                        Chưa có dữ liệu
-                                     </div>
-                                 ) : (
-                                    <canvas ref={chartRef}></canvas>
-                                 )}
-                            </div>
-                        </div>
-
-                        <div className="bg-white p-6 rounded-xl card-shadow flex flex-col gap-6">
-                            <div>
-                                <h3 className="font-semibold text-gray-800 mb-4">Ngân sách tháng</h3>
-                                <div className="flex justify-between items-end mb-2 text-sm">
-                                    <span className="text-gray-600">Đã dùng: <b>{formatCurrency(totalExpense)}</b></span>
-                                    <span className="text-gray-400">/ {formatCurrency(budgetLimit)}</span>
-                                </div>
-                                <div className="w-full bg-gray-100 rounded-full h-4 overflow-hidden">
-                                    <div className={`h-full transition-all duration-700 ${percentUsed > 90 ? 'bg-red-500' : percentUsed > 75 ? 'bg-yellow-400' : 'bg-green-500'}`} style={{ width: `${percentUsed}%` }}></div>
-                                </div>
-                                <p className="text-right text-xs text-gray-500 mt-1">{percentUsed.toFixed(1)}%</p>
-                            </div>
-
-                            <div className={`flex-1 p-4 rounded-xl border ${advice.type === 'danger' ? 'bg-red-50 border-red-100 text-red-700' : advice.type === 'warning' ? 'bg-yellow-50 border-yellow-100 text-yellow-700' : advice.type === 'info' ? 'bg-blue-50 border-blue-100 text-blue-700' : 'bg-gray-50 border-gray-100 text-gray-600'}`}>
-                                <div className="flex items-center gap-2 mb-2 font-semibold">
-                                    <Icon name="lightbulb" size={20} /> Gợi ý
-                                </div>
-                                <p className="text-sm leading-relaxed">{advice.text}</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="bg-white rounded-xl card-shadow overflow-hidden">
-                        <div className="p-6 border-b border-gray-100 flex justify-between items-center">
-                            <h3 className="font-semibold text-gray-800">Giao dịch gần đây</h3>
-                            <button onClick={() => setActiveTab('history')} className="text-blue-600 text-sm font-medium hover:underline">Xem tất cả</button>
-                        </div>
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-left border-collapse">
-                                <thead className="bg-gray-50 text-gray-500 text-xs uppercase font-semibold">
-                                    <tr>
-                                        <th className="p-4">Ngày</th>
-                                        <th className="p-4">Nội dung</th>
-                                        <th className="p-4">Danh mục</th>
-                                        <th className="p-4 text-right">Số tiền</th>
-                                        <th className="p-4 text-center">Loại</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="text-sm">
-                                    {transactions.slice(0, 5).map(t => (
-                                        <tr key={t.id} className="border-b border-gray-50 hover:bg-gray-50">
-                                            <td className="p-4 text-gray-500">{new Date(t.date).toLocaleDateString('vi-VN')}</td>
-                                            <td className="p-4 font-medium text-gray-800">{t.description}</td>
-                                            <td className="p-4 text-gray-500">
-                                                <span className="px-2 py-1 bg-gray-100 rounded-md text-xs">
-                                                    {t.type === 'expense' ? CATEGORIES.expense.find(c => c.id === t.category)?.label : CATEGORIES.income.find(c => c.id === t.category)?.label}
-                                                </span>
-                                            </td>
-                                            <td className={`p-4 text-right font-semibold ${t.type === 'income' ? 'text-green-600' : 'text-red-600'}`}>
-                                                {t.type === 'income' ? '+' : '-'}{formatCurrency(t.amount)}
-                                            </td>
-                                            <td className="p-4 text-center">
-                                                <button onClick={() => deleteTransaction(t.id)} className="text-gray-400 hover:text-red-500 transition p-2 hover:bg-red-50 rounded-full" title="Xóa">
-                                                    <Icon name="trash" size={18} />
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                    {transactions.length === 0 && <tr><td colSpan="5" className="p-8 text-center text-gray-400">Chưa có giao dịch nào</td></tr>}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            );
-
-            const renderInput = () => (
-                <div className="slide-in flex justify-center items-start pt-10">
-                    <div className="w-full max-w-2xl">
-                        <h2 className="text-2xl font-bold text-gray-800 mb-6">Thêm giao dịch mới</h2>
-                        <form onSubmit={handleAddTransaction} className="bg-white p-8 rounded-xl card-shadow space-y-6">
-                            <div className="flex gap-4">
-                                <label className={`flex-1 cursor-pointer border-2 rounded-xl p-4 flex flex-col items-center gap-2 transition ${type === 'expense' ? 'border-red-500 bg-red-50 text-red-600' : 'border-gray-200 hover:border-gray-300'}`}>
-                                    <input type="radio" name="type" className="hidden" checked={type === 'expense'} onChange={() => setType('expense')} />
-                                    <Icon name="trending-down" />
-                                    <span className="font-bold">Chi tiêu</span>
-                                </label>
-                                <label className={`flex-1 cursor-pointer border-2 rounded-xl p-4 flex flex-col items-center gap-2 transition ${type === 'income' ? 'border-green-500 bg-green-50 text-green-600' : 'border-gray-200 hover:border-gray-300'}`}>
-                                    <input type="radio" name="type" className="hidden" checked={type === 'income'} onChange={() => setType('income')} />
-                                    <Icon name="trending-up" />
-                                    <span className="font-bold">Thu nhập</span>
-                                </label>
-                            </div>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">Số tiền (VND)</label>
-                                    <div className="relative">
-                                        <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} className="w-full p-3 pl-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none text-lg font-semibold" placeholder="0" required />
-                                        <span className="absolute right-4 top-3.5 text-gray-400 text-sm">₫</span>
-                                    </div>
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">Danh mục</label>
-                                    <select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white">
-                                        {(type === 'expense' ? CATEGORIES.expense : CATEGORIES.income).map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">Mô tả nội dung</label>
-                                <input type="text" value={desc} onChange={(e) => setDesc(e.target.value)} className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="Ví dụ: Ăn trưa với đồng nghiệp, Tiền xăng xe..." required />
-                                <p className="text-xs text-blue-500 mt-2 flex items-center gap-1"><Icon name="lightbulb" size={14}/> Hệ thống tự động gợi ý danh mục.</p>
-                                {user.tier === 'vip' && <p className="text-xs text-yellow-600 mt-1 flex items-center gap-1"><Icon name="crown" size={14}/> VIP: Tự động thêm vào Lịch Google.</p>}
-                            </div>
-
-                            <div className="pt-4">
-                                <button type="submit" disabled={isSyncing} className={`w-full py-4 rounded-lg text-white font-bold shadow-md transition transform active:scale-95 ${type === 'expense' ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'}`}>
-                                    {isSyncing ? 'Đang lưu...' : 'Lưu giao dịch'}
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            );
-
-            const renderHistory = () => (
-                <div className="slide-in">
-                    <div className="flex justify-between items-center mb-6">
-                        <h2 className="text-2xl font-bold text-gray-800">Lịch sử giao dịch</h2>
-                        <button onClick={() => { if(confirm("Xóa toàn bộ lịch sử?")) { setTransactions([]); localStorage.removeItem('transactions'); }}} className="text-red-500 hover:bg-red-50 px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2"><Icon name="trash" size={16}/> Xóa tất cả</button>
-                    </div>
-                    
-                    <div className="bg-white rounded-xl card-shadow overflow-hidden">
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-left border-collapse">
-                                <thead className="bg-gray-50 text-gray-500 text-xs uppercase font-semibold border-b border-gray-200">
-                                    <tr>
-                                        <th className="p-4 w-1/6">Thời gian</th>
-                                        <th className="p-4 w-1/3">Nội dung</th>
-                                        <th className="p-4 w-1/6">Danh mục</th>
-                                        <th className="p-4 w-1/6 text-right">Số tiền</th>
-                                        <th className="p-4 w-1/6 text-center">Hành động</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-gray-100">
-                                    {transactions.map(t => (
-                                        <tr key={t.id} className="hover:bg-gray-50 transition">
-                                            <td className="p-4 text-gray-600">
-                                                <div className="font-medium">{new Date(t.date).toLocaleDateString('vi-VN')}</div>
-                                                <div className="text-xs text-gray-400">{new Date(t.date).toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'})}</div>
-                                            </td>
-                                            <td className="p-4 font-medium text-gray-800">{t.description}</td>
-                                            <td className="p-4">
-                                                <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-medium">
-                                                    {t.type === 'expense' ? CATEGORIES.expense.find(c => c.id === t.category)?.label : CATEGORIES.income.find(c => c.id === t.category)?.label}
-                                                </span>
-                                            </td>
-                                            <td className={`p-4 text-right font-bold ${t.type === 'income' ? 'text-green-600' : 'text-red-600'}`}>
-                                                {t.type === 'income' ? '+' : '-'}{formatCurrency(t.amount)}
-                                            </td>
-                                            <td className="p-4 text-center">
-                                                <button onClick={() => deleteTransaction(t.id)} className="text-gray-400 hover:text-red-500 transition p-2 hover:bg-red-50 rounded-full" title="Xóa">
-                                                    <Icon name="trash" size={18} />
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                    {transactions.length === 0 && (
-                                        <tr>
-                                            <td colSpan="5" className="p-12 text-center text-gray-400">
-                                                <Icon name="clock" size={48} className="mx-auto mb-3 opacity-20" />
-                                                Chưa có dữ liệu giao dịch nào
-                                            </td>
-                                        </tr>
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            );
-
-            const renderSettings = () => (
-                <div className="slide-in flex justify-center pt-10">
-                    <div className="w-full max-w-2xl">
-                        <h2 className="text-2xl font-bold text-gray-800 mb-6">Cài đặt</h2>
-                        <div className="bg-white p-8 rounded-xl card-shadow space-y-8">
-                            
-                            {/* Account Info */}
-                            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-200">
-                                <div className="flex items-center gap-4">
-                                    <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-bold text-xl">
-                                        {user.name.charAt(0).toUpperCase()}
-                                    </div>
-                                    <div>
-                                        <h3 className="font-bold text-gray-800">{user.name}</h3>
-                                        <p className="text-sm text-gray-500">{user.email}</p>
-                                    </div>
-                                </div>
-                                <div className="flex flex-col items-end gap-2">
-                                    {user.tier === 'vip' ? (
-                                        <span className="vip-gradient text-white text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1">
-                                            <Icon name="crown" size={12} /> VIP MEMBER
-                                        </span>
-                                    ) : (
-                                        <button className="text-blue-600 text-sm font-semibold hover:underline">Nâng cấp VIP</button>
-                                    )}
-                                    <button onClick={handleLogout} className="text-red-500 text-xs hover:underline">Đăng xuất</button>
-                                </div>
-                            </div>
-
-                            <div>
-                                <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                                    <Icon name="wallet" className="text-blue-500"/> Thiết lập ngân sách
-                                </h3>
-                                <label className="block text-sm font-medium text-gray-600 mb-2">Giới hạn chi tiêu hàng tháng (VND)</label>
-                                <input 
-                                    type="number" 
-                                    value={budgetLimit}
-                                    onChange={(e) => setBudgetLimit(Number(e.target.value))}
-                                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                                />
-                            </div>
-
-                            <div className="pt-4 border-t border-gray-100">
-                                <div className="flex items-center justify-between">
-                                    <h3 className="font-semibold text-gray-800 flex items-center gap-2">
-                                        <Icon name="cloud" className="text-gray-500"/> Đồng bộ dữ liệu (Cloud)
-                                    </h3>
-                                    <button 
-                                        className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition bg-gray-100 text-gray-400`}
-                                        disabled
-                                    >
-                                        Tự động lưu
-                                    </button>
-                                </div>
-                                <p className="text-xs text-gray-400 mt-2">Dữ liệu được lưu trữ an toàn trên Google Sheets & Lịch (Dành cho VIP).</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            );
-
-            // --- Sidebar Navigation Component ---
-            const SidebarItem = ({ id, label, icon }) => (
-                <button 
-                    onClick={() => setActiveTab(id)}
-                    className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-all duration-200 
-                    ${activeTab === id ? 'sidebar-active bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}`}
-                >
-                    <Icon name={icon} size={20} />
-                    {label}
-                </button>
-            );
+            if (!user) return <AuthScreen onLogin={handleLogin} />;
 
             return (
                 <div className="flex min-h-screen bg-slate-50">
-                    {/* Left Sidebar */}
-                    <aside className="w-64 bg-white border-r border-gray-200 hidden md:flex flex-col fixed h-full z-10">
-                        <div className="p-6 border-b border-gray-100 flex items-center gap-3">
-                            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold shadow-lg shadow-blue-200">
-                                $
-                            </div>
-                            <span className="text-xl font-bold text-gray-800 tracking-tight">Money Tracker</span>
+                    {/* Sidebar */}
+                    <aside className="w-64 bg-white border-r hidden md:flex flex-col fixed h-full z-10">
+                        <div className="p-6 border-b flex items-center gap-3">
+                            <span className="text-xl font-bold">Money Tracker</span>
                         </div>
-                        
-                        <nav className="flex-1 py-6 space-y-1">
-                            <SidebarItem id="dashboard" label="Tổng quan" icon="home" />
-                            <SidebarItem id="add" label="Thêm giao dịch" icon="plus-circle" />
-                            <SidebarItem id="history" label="Lịch sử chi tiết" icon="clock" />
-                            <SidebarItem id="settings" label="Cài đặt" icon="settings" />
+                        <nav className="flex-1 py-6">
+                            {['dashboard', 'add', 'history', 'settings'].map(tab => (
+                                <button key={tab} onClick={() => setActiveTab(tab)} className={`w-full flex items-center gap-3 px-6 py-3 font-medium ${activeTab === tab ? 'text-blue-600 bg-blue-50 border-r-4 border-blue-600' : 'text-gray-600 hover:bg-gray-50'}`}>
+                                    <Icon name={tab === 'dashboard' ? 'home' : tab === 'add' ? 'plus-circle' : tab === 'history' ? 'clock' : 'settings'} />
+                                    {tab === 'dashboard' ? 'Tổng quan' : tab === 'add' ? 'Thêm mới' : tab === 'history' ? 'Lịch sử' : 'Cài đặt'}
+                                </button>
+                            ))}
                         </nav>
-
-                        <div className="p-4 border-t border-gray-100">
-                            <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl cursor-pointer hover:bg-gray-100 transition" onClick={() => setActiveTab('settings')}>
-                                <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold ${user.tier === 'vip' ? 'vip-gradient' : 'bg-blue-500'}`}>
-                                    {user.name.charAt(0).toUpperCase()}
-                                </div>
+                        <div className="p-4 border-t">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center font-bold text-blue-600">{user.name.charAt(0)}</div>
                                 <div>
-                                    <p className="text-sm font-semibold text-gray-700">{user.name}</p>
-                                    <p className="text-xs text-gray-500 flex items-center gap-1">
-                                        {user.tier === 'vip' ? <><Icon name="crown" size={10} /> Pro Plan</> : 'Free Plan'}
-                                    </p>
+                                    <p className="font-semibold text-sm">{user.name}</p>
+                                    <button onClick={handleLogout} className="text-xs text-red-500 hover:underline">Đăng xuất</button>
                                 </div>
                             </div>
                         </div>
                     </aside>
 
-                    {/* Mobile Header (Visible only on small screens) */}
-                    <div className="md:hidden fixed top-0 left-0 right-0 bg-white border-b border-gray-200 p-4 z-20 flex justify-between items-center">
-                        <span className="font-bold text-lg">Money Tracker</span>
-                        <div onClick={() => setActiveTab('settings')} className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold ${user.tier === 'vip' ? 'vip-gradient' : 'bg-blue-500'}`}>
-                             {user.name.charAt(0).toUpperCase()}
-                        </div>
+                    {/* Mobile Nav */}
+                    <div className="md:hidden fixed bottom-0 w-full bg-white border-t flex justify-around p-3 z-20">
+                         {['dashboard', 'add', 'history', 'settings'].map(tab => (
+                            <button key={tab} onClick={() => setActiveTab(tab)} className={`${activeTab === tab ? 'text-blue-600' : 'text-gray-400'}`}>
+                                <Icon name={tab === 'dashboard' ? 'home' : tab === 'add' ? 'plus-circle' : tab === 'history' ? 'clock' : 'settings'} />
+                            </button>
+                        ))}
                     </div>
 
-                    {/* Main Content Area */}
-                    <main className="flex-1 md:ml-64 p-4 md:p-8 pt-20 md:pt-8 overflow-y-auto">
-                        <div className="max-w-6xl mx-auto">
-                            {activeTab === 'dashboard' && renderDashboard()}
-                            {activeTab === 'add' && renderInput()}
-                            {activeTab === 'history' && renderHistory()}
-                            {activeTab === 'settings' && renderSettings()}
+                    <main className="flex-1 md:ml-64 p-4 md:p-8 pb-20">
+                        <div className="max-w-5xl mx-auto">
+                            {/* Header Status */}
+                            <div className="flex justify-between items-center mb-6">
+                                <h2 className="text-2xl font-bold capitalize">{activeTab === 'add' ? 'Thêm giao dịch' : activeTab === 'history' ? 'Lịch sử' : activeTab === 'settings' ? 'Cài đặt' : 'Tổng quan'}</h2>
+                                <button onClick={() => fetchData(user.email)} className="flex items-center gap-2 text-sm text-gray-500 hover:text-blue-600">
+                                    {isSyncing ? <span className="loader"></span> : <Icon name="refresh" size={16}/>}
+                                    {isSyncing ? 'Đang tải...' : 'Làm mới'}
+                                </button>
+                            </div>
+
+                            {activeTab === 'dashboard' && (
+                                <div className="space-y-6 slide-in">
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                        <div className="bg-white p-6 rounded-xl shadow-sm border-l-4 border-blue-500">
+                                            <p className="text-gray-500 text-sm">Số dư</p>
+                                            <p className="text-2xl font-bold">{formatCurrency(totalIncome - totalExpense)}</p>
+                                        </div>
+                                        <div className="bg-white p-6 rounded-xl shadow-sm border-l-4 border-green-500">
+                                            <p className="text-gray-500 text-sm">Tổng thu</p>
+                                            <p className="text-2xl font-bold text-green-600">+{formatCurrency(totalIncome)}</p>
+                                        </div>
+                                        <div className="bg-white p-6 rounded-xl shadow-sm border-l-4 border-red-500">
+                                            <p className="text-gray-500 text-sm">Tổng chi</p>
+                                            <p className="text-2xl font-bold text-red-600">-{formatCurrency(totalExpense)}</p>
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="grid md:grid-cols-2 gap-6">
+                                        <div className="bg-white p-6 rounded-xl shadow-sm h-80">
+                                            <h3 className="font-semibold mb-4">Biểu đồ chi tiêu</h3>
+                                            {transactions.length > 0 ? <canvas ref={chartRef}></canvas> : <p className="text-center text-gray-400 mt-20">Chưa có dữ liệu</p>}
+                                        </div>
+                                        <div className="bg-white p-6 rounded-xl shadow-sm">
+                                            <h3 className="font-semibold mb-4">Gần đây</h3>
+                                            <div className="space-y-3">
+                                                {transactions.slice(0, 5).map(t => (
+                                                    <div key={t.id} className="flex justify-between items-center p-2 hover:bg-gray-50 rounded">
+                                                        <div>
+                                                            <div className="font-medium">{t.description}</div>
+                                                            <div className="text-xs text-gray-500">{new Date(t.date).toLocaleDateString()}</div>
+                                                        </div>
+                                                        <span className={t.type === 'income' ? 'text-green-600 font-bold' : 'text-red-600 font-bold'}>
+                                                            {t.type === 'income' ? '+' : '-'}{formatCurrency(t.amount)}
+                                                        </span>
+                                                    </div>
+                                                ))}
+                                                {transactions.length === 0 && <p className="text-gray-400 text-sm">Trống</p>}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {activeTab === 'add' && (
+                                <div className="slide-in flex justify-center">
+                                    <form onSubmit={handleAddTransaction} className="bg-white p-6 rounded-xl shadow-sm w-full max-w-lg space-y-4">
+                                        <div className="flex gap-4">
+                                            <label className={`flex-1 p-3 border rounded-xl text-center cursor-pointer ${type === 'expense' ? 'bg-red-50 border-red-500 text-red-600 font-bold' : ''}`}>
+                                                <input type="radio" className="hidden" checked={type === 'expense'} onChange={() => setType('expense')} /> Chi tiêu
+                                            </label>
+                                            <label className={`flex-1 p-3 border rounded-xl text-center cursor-pointer ${type === 'income' ? 'bg-green-50 border-green-500 text-green-600 font-bold' : ''}`}>
+                                                <input type="radio" className="hidden" checked={type === 'income'} onChange={() => setType('income')} /> Thu nhập
+                                            </label>
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm mb-1 font-medium">Số tiền</label>
+                                            <input type="number" value={amount} onChange={e => setAmount(e.target.value)} className="w-full p-3 border rounded-lg text-lg" placeholder="0" required />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm mb-1 font-medium">Mô tả</label>
+                                            <input type="text" value={desc} onChange={e => setDesc(e.target.value)} className="w-full p-3 border rounded-lg" placeholder="Ví dụ: Ăn sáng..." required />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm mb-1 font-medium">Danh mục</label>
+                                            <select value={category} onChange={e => setCategory(e.target.value)} className="w-full p-3 border rounded-lg bg-white">
+                                                {(type === 'expense' ? CATEGORIES.expense : CATEGORIES.income).map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
+                                            </select>
+                                        </div>
+                                        <button type="submit" disabled={isSyncing} className="w-full py-3 bg-blue-600 text-white rounded-lg font-bold shadow-lg hover:bg-blue-700">Lưu giao dịch</button>
+                                    </form>
+                                </div>
+                            )}
+
+                            {activeTab === 'history' && (
+                                <div className="bg-white rounded-xl shadow-sm overflow-hidden slide-in">
+                                    <table className="w-full text-left">
+                                        <thead className="bg-gray-50 border-b">
+                                            <tr>
+                                                <th className="p-4 text-sm font-semibold">Ngày</th>
+                                                <th className="p-4 text-sm font-semibold">Nội dung</th>
+                                                <th className="p-4 text-right text-sm font-semibold">Số tiền</th>
+                                                <th className="p-4 text-center text-sm font-semibold">Xóa</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y">
+                                            {transactions.map(t => (
+                                                <tr key={t.id}>
+                                                    <td className="p-4 text-sm text-gray-500">{new Date(t.date).toLocaleDateString()}</td>
+                                                    <td className="p-4 font-medium">
+                                                        {t.description} <br/> 
+                                                        <span className="text-xs text-gray-400 bg-gray-100 px-1 rounded">{(type === 'expense' ? CATEGORIES.expense : CATEGORIES.income).find(c => c.id === t.category)?.label || t.category}</span>
+                                                    </td>
+                                                    <td className={`p-4 text-right font-bold ${t.type === 'income' ? 'text-green-600' : 'text-red-600'}`}>
+                                                        {t.type === 'income' ? '+' : '-'}{formatCurrency(t.amount)}
+                                                    </td>
+                                                    <td className="p-4 text-center">
+                                                        <button onClick={() => deleteTransaction(t.id)} className="text-gray-400 hover:text-red-500"><Icon name="trash" size={16}/></button>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                            {transactions.length === 0 && <tr><td colSpan="4" className="p-8 text-center text-gray-400">Trống</td></tr>}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+                            
+                            {activeTab === 'settings' && (
+                                <div className="slide-in bg-white p-6 rounded-xl shadow-sm">
+                                    <h3 className="font-bold mb-4">Thông tin tài khoản</h3>
+                                    <div className="p-4 border rounded-lg bg-gray-50 flex justify-between items-center">
+                                        <div>
+                                            <p className="font-bold text-lg">{user.name}</p>
+                                            <p className="text-gray-500">{user.email}</p>
+                                        </div>
+                                        <span className={`px-3 py-1 rounded-full text-xs font-bold ${user.tier === 'vip' ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-200 text-gray-600'}`}>
+                                            {user.tier === 'vip' ? 'VIP MEMBER' : 'FREE'}
+                                        </span>
+                                    </div>
+                                    <div className="mt-6">
+                                        <label className="font-medium">Ngân sách tháng</label>
+                                        <input type="number" value={budgetLimit} onChange={e => setBudgetLimit(e.target.value)} className="w-full mt-2 p-3 border rounded-lg"/>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </main>
                 </div>
