@@ -40,7 +40,7 @@
 
         const GAS_API_URL = "https://script.google.com/macros/s/AKfycbxI1uxUAE76Z5QFi-8HRcNB6BvameBiHtmxRwirpCykv-5TatHOi2ssVMtqX8Gp6bSv/exec"; 
         
-        const ADMIN_EMAIL = "minhtre2609@gmail.com";
+        const ADMIN_EMAIL = "phannhatminh809@gmail.com";
 
         const REAL_API = {
             checkUrl: () => {
@@ -65,7 +65,6 @@
                     throw new Error(data.message || "Lỗi xử lý từ Server");
                 } catch (err) {
                     console.error("API Error:", err);
-                    // Bắt lỗi kết nối mạng (CORS, sai link, mất mạng)
                     if (err.name === 'TypeError' && err.message.includes('fetch')) {
                         throw new Error("Lỗi kết nối! Vui lòng kiểm tra:\n1. Link API có đúng không?\n2. Bạn đã chọn quyền 'Anyone' (Bất kỳ ai) khi Deploy chưa?");
                     }
@@ -109,7 +108,6 @@
 
         const formatCurrency = (n) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(n);
         const formatDateTime = (d) => !d ? '' : new Date(d).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' });
-        // Hàm lấy giờ hiện tại chuẩn ISO cho input datetime-local (bù múi giờ)
         const getCurrentDateTimeLocal = () => { 
             const n=new Date(); 
             n.setMinutes(n.getMinutes()-n.getTimezoneOffset()); 
@@ -123,7 +121,7 @@
                     <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"><Icon name="x" size={24}/></button>
                     <div className="bg-yellow-50 p-6 text-center border-b border-yellow-100">
                         <h3 className="font-bold text-xl text-yellow-800">Thanh toán VIP</h3>
-                        <p className="text-sm text-yellow-600 mt-1">Mở khóa chức năng tích hợp vào Google Calendar</p>
+                        <p className="text-sm text-yellow-600 mt-1">Tự động điền nội dung chuyển khoản</p>
                     </div>
                     <div className="p-6 flex flex-col items-center">
                         <img src={`https://img.vietqr.io/image/bidv-4506521679-compact.jpg?amount=50000&addInfo=Nang cap VIP ${email}&accountName=PHAN NHAT MINH`} alt="QR" className="w-48 h-48 object-contain bg-white p-2 rounded-lg border mb-4" />
@@ -145,7 +143,6 @@
                     </div>
                     <div className="p-6 space-y-4 text-sm text-gray-600">
                         <p>Để ứng dụng tự động thêm sự kiện vào Lịch của bạn, bạn cần chia sẻ quyền chỉnh sửa cho Admin.</p>
-                        
                         <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
                             <div className="font-bold text-gray-800 mb-2">Bước 1: Copy email Admin</div>
                             <div className="flex items-center gap-2 bg-white p-2 rounded border border-gray-300">
@@ -153,7 +150,6 @@
                                 <button onClick={() => { navigator.clipboard.writeText(ADMIN_EMAIL); alert("Đã copy!"); }} className="text-blue-600 p-1 hover:bg-blue-50 rounded"><Icon name="copy" size={16}/></button>
                             </div>
                         </div>
-
                         <div className="space-y-2">
                             <div className="font-bold text-gray-800">Bước 2: Cài đặt chia sẻ</div>
                             <ul className="list-disc pl-5 space-y-1">
@@ -165,11 +161,7 @@
                                 <li>Bấm Gửi.</li>
                             </ul>
                         </div>
-                        
-                        <div className="bg-green-50 text-green-800 p-3 rounded-lg text-xs">
-                            Xong! Từ giờ khi bạn thêm giao dịch, nó sẽ tự động hiện trên lịch của bạn.
-                        </div>
-                        
+                        <div className="bg-green-50 text-green-800 p-3 rounded-lg text-xs">Xong! Từ giờ khi bạn thêm giao dịch, nó sẽ tự động hiện trên lịch của bạn.</div>
                         <button onClick={onClose} className="w-full py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200">Đã hiểu</button>
                     </div>
                 </div>
@@ -227,7 +219,7 @@
         const AccountTab = ({ user, setUser, onLogout }) => {
             const [passModal, setPassModal] = useState(false);
             const [qrModal, setQrModal] = useState(false);
-            const [guideModal, setGuideModal] = useState(false); // State cho Guide Modal
+            const [guideModal, setGuideModal] = useState(false); 
             const [newPass, setNewPass] = useState('');
             const [loading, setLoading] = useState(false);
 
@@ -248,7 +240,6 @@
                     </div>
 
                     <div className="space-y-4">
-                        {/* Button Hướng dẫn đồng bộ - Chỉ VIP/Admin mới thấy */}
                         {(user.tier === 'vip' || user.tier === 'admin') && (
                             <button onClick={()=>setGuideModal(true)} className="w-full flex items-center gap-4 p-4 rounded-xl bg-blue-50 border border-blue-100 hover:bg-blue-100 transition group text-left">
                                 <div className="bg-white p-2 rounded-lg"><Icon name="calendar" size={20} className="text-blue-600"/></div>
@@ -295,7 +286,24 @@
             useEffect(() => { if(tab === 'dashboard' && chartRef.current) { if(chartInstance.current) chartInstance.current.destroy(); const { labels, values, bgColors } = chartData; if(values.length === 0) { chartInstance.current = new Chart(chartRef.current, { type: 'doughnut', data: { labels: ['Trống'], datasets: [{ data: [1], backgroundColor: ['#f1f5f9'] }] }, options: { cutout: '75%', plugins: { legend: { display: false }, tooltip: { enabled: false } } } }); return; } chartInstance.current = new Chart(chartRef.current, { type: 'doughnut', data: { labels, datasets: [{ data: values, backgroundColor: bgColors, borderWidth: 0, hoverOffset: 4 }] }, options: { responsive: true, cutout: '75%', maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { enabled: true } }, layout: { padding: 0 } } }); } }, [tab, chartData]);
 
             const loadData = async () => { setLoading(true); try { setTrans(await REAL_API.getTransactions(user.email)); } catch(e) { console.error(e); } finally { setLoading(false); } };
-            const saveTrans = async (e) => { e.preventDefault(); const selectedDate = input.date ? new Date(input.date).toISOString() : new Date().toISOString(); const t = { ...input, id: 't'+Date.now(), amount: parseInt(input.amount), date: selectedDate }; setTrans([t, ...trans]); setInput({ ...input, amount: '', desc: '', date: getCurrentDateTimeLocal() }); try { await REAL_API.addTransaction(user, t); } catch(err) { alert("Lỗi lưu: " + err.message); } };
+            
+            // Sửa lỗi lưu mô tả: Ánh xạ input.desc -> object.description để khớp với Backend
+            const saveTrans = async (e) => { 
+                e.preventDefault(); 
+                const selectedDate = input.date ? new Date(input.date).toISOString() : new Date().toISOString(); 
+                const t = { 
+                    id: 't'+Date.now(), 
+                    amount: parseInt(input.amount), 
+                    date: selectedDate,
+                    description: input.desc, // <-- FIX: Map desc to description
+                    type: input.type,
+                    category: input.category
+                }; 
+                setTrans([t, ...trans]); 
+                setInput({ ...input, amount: '', desc: '', date: getCurrentDateTimeLocal() }); 
+                try { await REAL_API.addTransaction(user, t); } catch(err) { alert("Lỗi lưu: " + err.message); } 
+            };
+            
             const removeTrans = async (id) => { if(!confirm("Xóa?")) return; const oldTrans = [...trans]; setTrans(trans.filter(t => t.id !== id)); try { await REAL_API.deleteTransaction(user.email, id); } catch(err) { alert("Lỗi xóa: " + err.message); setTrans(oldTrans); } };
 
             if(!user) return <AuthScreen onLogin={setUser} />;
@@ -326,5 +334,3 @@
     </script>
 </body>
 </html>
-
-
