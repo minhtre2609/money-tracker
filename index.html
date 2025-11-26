@@ -37,28 +37,40 @@
 
     <script type="text/babel">
         const { useState, useEffect, useRef, useMemo } = React;
-        
-        const ENCODED_API_URL = "aHR0cHM6Ly9zY3JpcHQuZ29vZ2xlLmNvbS9tYWNyb3Mvcy9BS2Z5Y2J4ckVXU2FhZ0dfcXAzZVZlUG00QjJGV1V3YzZjazBBTURJcW04NUJadUhaQ0lfUjRPaHBmN0YwbzEtdWlMWHB5by9leGVj";
 
-        const GAS_API_URL = atob(ENCODED_API_URL);
+        const GAS_API_URL = "https://script.google.com/macros/s/AKfycbx-LV2MjOjxeFWp8PApNOlF0hpT3CYIQHIvs25g_tPgWiYyF2plZymvSWA-c3NstqgC/exec"; 
         
         const ADMIN_EMAIL = "phannhatminh809@gmail.com";
 
         const REAL_API = {
             checkUrl: () => {
-                if (!GAS_API_URL || GAS_API_URL.length < 10) { alert("Thiếu API URL!"); return false; }
+                if (!GAS_API_URL || GAS_API_URL.length < 10) { 
+                    alert("LỖI: Bạn chưa dán link Google Apps Script vào biến GAS_API_URL trong code!");
+                    return false; 
+                }
                 return true;
             },
             call: async (payload) => {
-                if (!REAL_API.checkUrl()) throw new Error("No API");
-                const res = await fetch(GAS_API_URL, {
-                    method: 'POST', redirect: "follow",
-                    headers: { "Content-Type": "text/plain;charset=utf-8" },
-                    body: JSON.stringify(payload)
-                });
-                const data = await res.json();
-                if (data.status === 'success') return data;
-                throw new Error(data.message || "Lỗi API");
+                if (!REAL_API.checkUrl()) throw new Error("Chưa cấu hình API URL");
+                
+                try {
+                    const res = await fetch(GAS_API_URL, {
+                        method: 'POST', redirect: "follow",
+                        headers: { "Content-Type": "text/plain;charset=utf-8" },
+                        body: JSON.stringify(payload)
+                    });
+                    
+                    const data = await res.json();
+                    if (data.status === 'success') return data;
+                    throw new Error(data.message || "Lỗi xử lý từ Server");
+                } catch (err) {
+                    console.error("API Error:", err);
+                    // Kiểm tra xem có phải lỗi CORS hoặc sai link không
+                    if (err.message === "Failed to fetch") {
+                        throw new Error("Không thể kết nối Server. Hãy kiểm tra: 1. Link API đúng chưa? 2. Đã Deploy quyền 'Anyone' chưa?");
+                    }
+                    throw err;
+                }
             },
             login: async (email, password) => (await REAL_API.call({ action: 'login', email, password })).user,
             register: async (name, email, password, tier) => (await REAL_API.call({ action: 'register', name, email, password, tier })).user,
@@ -97,7 +109,12 @@
 
         const formatCurrency = (n) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(n);
         const formatDateTime = (d) => !d ? '' : new Date(d).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' });
-        const getCurrentDateTimeLocal = () => { const n=new Date(); n.setMinutes(n.getMinutes()-n.getTimezoneOffset()); return n.toISOString().slice(0,16); };
+        // Hàm lấy giờ hiện tại chuẩn ISO cho input datetime-local (bù múi giờ)
+        const getCurrentDateTimeLocal = () => { 
+            const n=new Date(); 
+            n.setMinutes(n.getMinutes()-n.getTimezoneOffset()); 
+            return n.toISOString().slice(0,16); 
+        };
 
         // --- Modals ---
         const QRModal = ({ email, onClose, onConfirm }) => (
@@ -118,7 +135,7 @@
             </div>
         );
 
-        // --- Guide Modal (New) ---
+        // --- Guide Modal ---
         const GuideModal = ({ onClose }) => (
             <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 backdrop-blur-sm slide-in">
                 <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl relative max-h-[90vh] overflow-y-auto">
