@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Money Tracker Pro</title>
+    <title>Money Tracker</title>
     
     <!-- React & ReactDOM -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
@@ -311,7 +311,7 @@
             return (
                 <div className="flex min-h-screen bg-slate-50 text-gray-800">
                     <aside className="w-64 bg-white border-r hidden md:flex flex-col fixed h-full z-10">
-                        <div className="p-6 border-b"><h1 className="text-xl font-bold text-blue-600">Money Manager</h1></div>
+                        <div className="p-6 border-b"><h1 className="text-xl font-bold text-blue-600">Money Tracker</h1></div>
                         <nav className="flex-1 p-4 space-y-2">{navItems.map(i => (<button key={i.id} onClick={()=>setTab(i.id)} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition ${tab===i.id ? 'bg-blue-50 text-blue-600' : 'text-gray-500 hover:bg-gray-50'}`}><Icon name={i.icon} /> {i.label}</button>))}</nav>
                     </aside>
                     <main className="flex-1 md:ml-64 p-4 md:p-8 pb-24">
@@ -334,5 +334,6 @@
     </script>
 </body>
 </html>
+
 
 
