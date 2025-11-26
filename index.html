@@ -38,9 +38,9 @@
     <script type="text/babel">
         const { useState, useEffect, useRef, useMemo } = React;
         
-        const PREDICTION = "aHR0cHM6Ly9zY3JpcHQuZ29vZ2xlLmNvbS9tYWNyb3Mvcy9BS2Z5Y2J4ckVXU2FhZ0dfcXAzZVZlUG00QjJGV1V3YzZjazBBTURJcW04NUJadUhaQ0lfUjRPaHBmN0YwbzEtdWlMWHB5by9leGVj";
+        const ENCODED_API_URL = "aHR0cHM6Ly9zY3JpcHQuZ29vZ2xlLmNvbS9tYWNyb3Mvcy9BS2Z5Y2J4ckVXU2FhZ0dfcXAzZVZlUG00QjJGV1V3YzZjazBBTURJcW04NUJadUhaQ0lfUjRPaHBmN0YwbzEtdWlMWHB5by9leGVj";
 
-        const GAS_API_URL = atob(PREDICTION);
+        const GAS_API_URL = atob(ENCODED_API_URL);
         
         const ADMIN_EMAIL = "phannhatminh809@gmail.com";
 
