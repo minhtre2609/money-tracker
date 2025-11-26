@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Money Tracker Pro - Đồng bộ dữ liệu</title>
+    <title>Money Tracker Pro</title>
     
     <!-- React & ReactDOM -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
@@ -86,7 +86,6 @@
                 return await response.json();
             },
 
-            // --- MỚI: HÀM LẤY DỮ LIỆU CŨ ---
             getTransactions: async (email) => {
                 if (!REAL_API.checkUrl()) return [];
                 const response = await fetch(GAS_API_URL, {
@@ -506,3 +505,4 @@
     </script>
 </body>
 </html>
+
