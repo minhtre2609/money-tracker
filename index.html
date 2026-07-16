@@ -330,7 +330,15 @@
         };
 
         const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
+
+try {
+    root.render(<App />);
+    console.log("Render OK");
+} catch (e) {
+    console.error(e);
+    document.getElementById("root").innerHTML =
+        "<pre style='color:red'>" + e.stack + "</pre>";
+}
     </script>
 </body>
 </html>
